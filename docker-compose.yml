@@ -1,0 +1,47 @@
+# Runs PostgreSQL + the Node.js/Express API. Start the React app separately with `npm run dev`.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wellora
+      POSTGRES_USER: wellora
+      POSTGRES_PASSWORD: wellora_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # Creates every table on the first start (runs only when the data volume is empty).
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wellora -d wellora"]
+      interval: 5s
+      retries: 20
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: "8080"
+      APP_TIMEZONE: UTC
+      ALLOWED_ORIGINS: http://localhost:5173
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: wellora
+      DB_PASSWORD: wellora_pass
+      DB_NAME: wellora
+      JWT_SECRET: local-dev-secret-change-me-please-0123456789
+      SEED_DEMO_DATA: "true"
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads:/app/uploads
+
+volumes:
+  db_data:
+  uploads:
